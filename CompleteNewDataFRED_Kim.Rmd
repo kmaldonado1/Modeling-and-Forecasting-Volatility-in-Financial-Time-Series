@@ -1,0 +1,1229 @@
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Load necessary libraries
+library(forecast)
+library(tseries)
+library(tidyverse)
+library(readr)
+library(ggplot2)
+library(zoo)
+library(TSA)
+library(rugarch)
+library(forecast)
+library(PerformanceAnalytics)
+library(xts)
+library(quantmod)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+file_path <- "C:\\Users\\maldo\\Downloads\\RSXFSN (2).csv"
+
+retail_sales_data <- read_csv(file_path)
+
+# Convert the DATE column to Date type
+retail_sales_data$DATE <- as.Date(retail_sales_data$DATE, format="%Y-%m-%d")
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+head(retail_sales_data)
+summary(retail_sales_data)
+
+# Check the number of rows in the original dataset
+num_data_points <- nrow(retail_sales_data)
+cat("Number of data points in the original dataset:", num_data_points, "\n")
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Plot the original data
+ggplot(data = retail_sales_data, aes(x = DATE, y = RSXFSN)) +
+  geom_line(color = "blue") +
+  labs(title = "Time Series of Monthly Retail Sales",
+       x = "Date",
+       y = "Retail Sales") +
+  theme_minimal()
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Create a time series object
+ts_data <- ts(retail_sales_data$RSXFSN, start = c(1992, 12), frequency = 12)
+
+boxplot(ts_data ~ cycle(ts_data), main="Seasonal Boxplot of Monthly Retail Sales", ylab = "Sales", xlab = "Month")
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Create ACF plot
+acf(retail_sales_data$RSXFSN, main = "ACF of Monthly Retail Sales", lag.max = 100)
+
+# Create PACF plot
+par(mar=c(5, 5, 4, 2) + 0.1)
+pacf(retail_sales_data$RSXFSN, main = "PACF of Monthly Retail Sales", lag.max = 100)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+adf_test_result <- adf.test(retail_sales_data$RSXFSN)
+print(adf_test_result)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Perform seasonal decomposition
+decomposed <- stl(ts(retail_sales_data$RSXFSN, frequency = 12), s.window = "periodic")
+plot(decomposed)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Apply seasonal differencing with a lag of 12
+seasonal_diff <- diff(retail_sales_data$RSXFSN, lag = 12)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Apply first differencing to the seasonally differenced data
+combined_diff <- diff(seasonal_diff)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Convert the differenced data to a time series object for plotting
+combined_diff_ts <- ts(combined_diff, frequency = 12)
+
+# Plot the differenced data
+plot(combined_diff_ts, main = "Seasonally and First Differenced Time Series",
+     ylab = "Differenced Value", xlab = "Time")
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Perform the ADF test
+adf_test_result <- adf.test(combined_diff_ts)
+print(adf_test_result)
+
+# Perform the KPSS test
+kpss_test_result <- kpss.test(combined_diff_ts)
+print(kpss_test_result)
+```
+
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Plot ACF for the differenced data
+acf(combined_diff_ts, main="ACF of Differenced RSXFSN", lag.max=50)
+
+# PACF plot for differenced data
+pacf(combined_diff_ts, main="PACF of Differenced RSXFSN", lag.max=50)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+eacf(combined_diff_ts)
+```
+
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Fit an ARIMA model (the order can be adjusted based on ACF/PACF analysis)
+arima_fit <- auto.arima(combined_diff_ts)
+
+# Print the ARIMA model summary
+summary(arima_fit)
+
+# Plot the ARIMA model diagnostics
+checkresiduals(arima_fit)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+arima_model_204001 <- Arima(combined_diff_ts, 
+                     order = c(2, 0, 4), 
+                     seasonal = list(order = c(0, 0, 1), period = 12))
+
+# Print the summary of the fitted model
+summary(arima_model_204001)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+arima_model_204003 <- Arima(combined_diff_ts, 
+                     order = c(2, 0, 4), 
+                     seasonal = list(order = c(0, 0, 3), period = 12))
+
+# Print the summary of the fitted model
+summary(arima_model_204003)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+arima_model_102001 <- Arima(combined_diff_ts, 
+                     order = c(1, 0, 2), 
+                     seasonal = list(order = c(0, 0, 1), period = 12))
+
+# Print the summary of the fitted model
+summary(arima_model_102001)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+arima_model_002001 <- Arima(combined_diff_ts, 
+                     order = c(0, 0, 2), 
+                     seasonal = list(order = c(0, 0, 1), period = 12))
+
+# Print the summary of the fitted model
+summary(arima_model_002001)
+```
+
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+arima_model_002002 <- Arima(combined_diff_ts, 
+                     order = c(0, 0, 2), 
+                     seasonal = list(order = c(0, 0, 2), period = 12))
+
+# Print the summary of the fitted model
+summary(arima_model_002002)
+```
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+arima_model_101001 <- Arima(combined_diff_ts, 
+                     order = c(1, 0, 1), 
+                     seasonal = list(order = c(0, 0, 1), period = 12))
+
+# Print the summary of the fitted model
+summary(arima_model_101001)
+```
+
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+arima_model_202001 <- Arima(combined_diff_ts, 
+                     order = c(2, 0, 2), 
+                     seasonal = list(order = c(0, 0, 1), period = 12))
+
+# Print the summary of the fitted model
+summary(arima_model_202001)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+arima_model_303001 <- Arima(combined_diff_ts, 
+                     order = c(3, 0, 3), 
+                     seasonal = list(order = c(0, 0, 1), period = 12))
+
+# Print the summary of the fitted model
+summary(arima_model_303001)
+
+```
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+arima_model_303003 <- Arima(combined_diff_ts, 
+                     order = c(3, 0, 3), 
+                     seasonal = list(order = c(0, 0, 3), period = 12))
+
+# Print the summary of the fitted model
+summary(arima_model_303003)
+```
+
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+arima_residuals <- residuals(arima_model_303001)
+
+# Print the first few residuals to inspect them
+head(arima_residuals)
+```
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Square the residuals
+squared_residuals <- arima_residuals^2
+
+# Plot ACF of squared residuals
+acf(squared_residuals, lag.max = 20, main = "ACF of Squared Residuals")
+
+# Plot PACF of squared residuals
+pacf(squared_residuals, lag.max = 20, main = "PACF of Squared Residuals")
+
+# Calculate ACF and PACF values
+acf_values <- acf(squared_residuals, lag.max = 20, plot = FALSE)$acf
+pacf_values <- pacf(squared_residuals, lag.max = 20, plot = FALSE)$acf
+
+# Display ACF and PACF values
+acf_values
+pacf_values
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the GARCH(1,1) model
+garch_spec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(0, 0), include.mean = FALSE),
+  distribution.model = "norm"  # You can also try "std" for t-distribution
+)
+
+# Fit the GARCH model to the ARIMA residuals
+garch_fit <- ugarchfit(spec = garch_spec, data = arima_residuals)
+
+# Print the GARCH model summary
+summary(garch_fit)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Check if the model converged successfully
+summary(garch_fit)
+
+# Plot diagnostics
+plot(garch_fit, which = "all")
+
+# Check AIC, BIC, and other criteria
+aic_value <- infocriteria(garch_fit)["Akaike",]
+bic_value <- infocriteria(garch_fit)["Bayes",]
+
+cat("AIC:", aic_value, "\n")
+cat("BIC:", bic_value, "\n")
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the GARCH(1,1) model
+garch_spec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(0, 0), include.mean = FALSE),
+  distribution.model = "norm"  # You can also try "std" for t-distribution
+)
+
+# Fit the GARCH model to the ARIMA residuals
+garch_fit <- ugarchfit(spec = garch_spec, data = arima_residuals)
+
+# Extract and print the summary
+garch_summary <- summary(garch_fit)
+print(garch_summary)
+
+# Extract coefficients and standard errors
+coef_table <- garch_fit@fit$matcoef
+
+# Extract p-values from the coefficient table
+p_values <- coef_table[, 4]
+
+# Print the coefficients and p-values
+print(coef_table)
+
+# Output the p-values
+cat("P-values for the GARCH(1,1) model parameters:\n")
+print(p_values)
+
+# Plot diagnostics
+plot(garch_fit, which = "all")
+
+# Check AIC, BIC, and other criteria
+aic_value <- infocriteria(garch_fit)["Akaike",]
+bic_value <- infocriteria(garch_fit)["Bayes",]
+
+cat("AIC:", aic_value, "\n")
+cat("BIC:", bic_value, "\n")
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the GARCH(1,1) model
+garch_spec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(0, 0), include.mean = FALSE),
+  distribution.model = "std" 
+)
+
+# Fit the GARCH model to the ARIMA residuals
+garch_fit <- ugarchfit(spec = garch_spec, data = arima_residuals)
+
+# Extract and print the summary
+garch_summary <- summary(garch_fit)
+print(garch_summary)
+
+# Extract coefficients and standard errors
+coef_table <- garch_fit@fit$matcoef
+
+# Extract p-values from the coefficient table
+p_values <- coef_table[, 4]
+
+# Print the coefficients and p-values
+print(coef_table)
+
+# Output the p-values
+cat("P-values for the GARCH(1,1) model parameters:\n")
+print(p_values)
+
+# Plot diagnostics - plot 8 (ACF of the standardized residuals)
+plot(garch_fit, which = 8)
+
+# Plot diagnostics - plot 9 (ACF of the squared standardized residuals)
+plot(garch_fit, which = 9)
+
+# Plot diagnostics - plot 10 (Cross-correlation between residuals and squared residuals)
+plot(garch_fit, which = 10)
+
+# Check AIC, BIC, and other criteria
+aic_value <- infocriteria(garch_fit)["Akaike",]
+bic_value <- infocriteria(garch_fit)["Bayes",]
+
+cat("AIC:", aic_value, "\n")
+cat("BIC:", bic_value, "\n")
+```
+
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the GARCH(1,1) model
+garch_spec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(1, 1), include.mean = FALSE),
+  distribution.model = "norm"  # You can also try "std" for t-distribution
+)
+
+# Fit the GARCH model to the ARIMA residuals
+garch_fit <- ugarchfit(spec = garch_spec, data = arima_residuals)
+
+# Extract and print the summary
+garch_summary <- summary(garch_fit)
+print(garch_summary)
+
+# Extract coefficients and standard errors
+coef_table <- garch_fit@fit$matcoef
+
+# Extract p-values from the coefficient table
+p_values <- coef_table[, 4]
+
+# Print the coefficients and p-values
+print(coef_table)
+
+# Output the p-values
+cat("P-values for the GARCH(1,1) model parameters:\n")
+print(p_values)
+
+# Plot diagnostics
+plot(garch_fit, which = "all")
+
+# Check AIC, BIC, and other criteria
+aic_value <- infocriteria(garch_fit)["Akaike",]
+bic_value <- infocriteria(garch_fit)["Bayes",]
+
+cat("AIC:", aic_value, "\n")
+cat("BIC:", bic_value, "\n")
+```
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the GARCH(1,1) model
+garch_spec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(1, 0), include.mean = FALSE),
+  distribution.model = "std"  # You can also try "std" for t-distribution
+)
+
+# Fit the GARCH model to the ARIMA residuals
+garch_fit <- ugarchfit(spec = garch_spec, data = arima_residuals)
+
+# Extract and print the summary
+garch_summary <- summary(garch_fit)
+print(garch_summary)
+
+# Extract coefficients and standard errors
+coef_table <- garch_fit@fit$matcoef
+
+# Extract p-values from the coefficient table
+p_values <- coef_table[, 4]
+
+# Print the coefficients and p-values
+print(coef_table)
+
+# Output the p-values
+cat("P-values for the GARCH(1,1) model parameters:\n")
+print(p_values)
+
+# Plot diagnostics
+plot(garch_fit, which = "all")
+
+# Check AIC, BIC, and other criteria
+aic_value <- infocriteria(garch_fit)["Akaike",]
+bic_value <- infocriteria(garch_fit)["Bayes",]
+
+cat("AIC:", aic_value, "\n")
+cat("BIC:", bic_value, "\n")
+```
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the GARCH(1,1) model
+garch_spec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(2, 0), include.mean = FALSE),
+  distribution.model = "norm"  # You can also try "std" for t-distribution
+)
+
+# Fit the GARCH model to the ARIMA residuals
+garch_fit <- ugarchfit(spec = garch_spec, data = arima_residuals)
+
+# Extract and print the summary
+garch_summary <- summary(garch_fit)
+print(garch_summary)
+
+# Extract coefficients and standard errors
+coef_table <- garch_fit@fit$matcoef
+
+# Extract p-values from the coefficient table
+p_values <- coef_table[, 4]
+
+# Print the coefficients and p-values
+print(coef_table)
+
+# Output the p-values
+cat("P-values for the GARCH(1,1) model parameters:\n")
+print(p_values)
+
+# Plot diagnostics
+plot(garch_fit, which = "all")
+
+# Check AIC, BIC, and other criteria
+aic_value <- infocriteria(garch_fit)["Akaike",]
+bic_value <- infocriteria(garch_fit)["Bayes",]
+
+cat("AIC:", aic_value, "\n")
+cat("BIC:", bic_value, "\n")
+```
+
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the GARCH(1,1) model
+garch_spec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(2, 0), include.mean = FALSE),
+  distribution.model = "std"  # You can also try "std" for t-distribution
+)
+
+# Fit the GARCH model to the ARIMA residuals
+garch_fit <- ugarchfit(spec = garch_spec, data = arima_residuals)
+
+# Extract and print the summary
+garch_summary <- summary(garch_fit)
+print(garch_summary)
+
+# Extract coefficients and standard errors
+coef_table <- garch_fit@fit$matcoef
+
+# Extract p-values from the coefficient table
+p_values <- coef_table[, 4]
+
+# Print the coefficients and p-values
+print(coef_table)
+
+# Output the p-values
+cat("P-values for the GARCH(1,1) model parameters:\n")
+print(p_values)
+
+# Plot diagnostics
+plot(garch_fit, which = "all")
+
+# Check AIC, BIC, and other criteria
+aic_value <- infocriteria(garch_fit)["Akaike",]
+bic_value <- infocriteria(garch_fit)["Bayes",]
+
+cat("AIC:", aic_value, "\n")
+cat("BIC:", bic_value, "\n")
+```
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the GARCH(1,1) model
+garch_spec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(2, 2), include.mean = FALSE),
+  distribution.model = "norm"  # You can also try "std" for t-distribution
+)
+
+# Fit the GARCH model to the ARIMA residuals
+garch_fit <- ugarchfit(spec = garch_spec, data = arima_residuals)
+
+# Extract and print the summary
+garch_summary <- summary(garch_fit)
+print(garch_summary)
+
+# Extract coefficients and standard errors
+coef_table <- garch_fit@fit$matcoef
+
+# Extract p-values from the coefficient table
+p_values <- coef_table[, 4]
+
+# Print the coefficients and p-values
+print(coef_table)
+
+# Output the p-values
+cat("P-values for the GARCH(1,1) model parameters:\n")
+print(p_values)
+
+# Plot diagnostics
+plot(garch_fit, which = "all")
+
+# Check AIC, BIC, and other criteria
+aic_value <- infocriteria(garch_fit)["Akaike",]
+bic_value <- infocriteria(garch_fit)["Bayes",]
+
+cat("AIC:", aic_value, "\n")
+cat("BIC:", bic_value, "\n")
+```
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the GARCH(1,1) model
+garch_spec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(2, 2), include.mean = FALSE),
+  distribution.model = "std"  # You can also try "std" for t-distribution
+)
+
+# Fit the GARCH model to the ARIMA residuals
+garch_fit <- ugarchfit(spec = garch_spec, data = arima_residuals)
+
+# Extract and print the summary
+garch_summary <- summary(garch_fit)
+print(garch_summary)
+
+# Extract coefficients and standard errors
+coef_table <- garch_fit@fit$matcoef
+
+# Extract p-values from the coefficient table
+p_values <- coef_table[, 4]
+
+# Print the coefficients and p-values
+print(coef_table)
+
+# Output the p-values
+cat("P-values for the GARCH(1,1) model parameters:\n")
+print(p_values)
+
+# Plot diagnostics - plot 8 (ACF of the standardized residuals)
+plot(garch_fit, which = 8)
+
+# Plot diagnostics - plot 9 (ACF of the squared standardized residuals)
+plot(garch_fit, which = 9)
+
+# Plot diagnostics - plot 10 (Cross-correlation between residuals and squared residuals)
+plot(garch_fit, which = 10)
+
+# Check AIC, BIC, and other criteria
+aic_value <- infocriteria(garch_fit)["Akaike",]
+bic_value <- infocriteria(garch_fit)["Bayes",]
+
+cat("AIC:", aic_value, "\n")
+cat("BIC:", bic_value, "\n")
+```
+
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the GARCH(1,1) model
+garch_spec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(2, 1), include.mean = FALSE),
+  distribution.model = "norm"  # You can also try "std" for t-distribution
+)
+
+# Fit the GARCH model to the ARIMA residuals
+garch_fit <- ugarchfit(spec = garch_spec, data = arima_residuals)
+
+# Extract and print the summary
+garch_summary <- summary(garch_fit)
+print(garch_summary)
+
+# Extract coefficients and standard errors
+coef_table <- garch_fit@fit$matcoef
+
+# Extract p-values from the coefficient table
+p_values <- coef_table[, 4]
+
+# Print the coefficients and p-values
+print(coef_table)
+
+# Output the p-values
+cat("P-values for the GARCH(1,1) model parameters:\n")
+print(p_values)
+
+# Plot diagnostics - plot 8 (ACF of the standardized residuals)
+plot(garch_fit, which = 8)
+
+# Plot diagnostics - plot 9 (ACF of the squared standardized residuals)
+plot(garch_fit, which = 9)
+
+# Plot diagnostics - plot 10 (Cross-correlation between residuals and squared residuals)
+plot(garch_fit, which = 10)
+
+# Check AIC, BIC, and other criteria
+aic_value <- infocriteria(garch_fit)["Akaike",]
+bic_value <- infocriteria(garch_fit)["Bayes",]
+
+cat("AIC:", aic_value, "\n")
+cat("BIC:", bic_value, "\n")
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the GARCH(1,1) model
+garch_spec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(2, 1), include.mean = FALSE),
+  distribution.model = "std"  # You can also try "std" for t-distribution
+)
+
+# Fit the GARCH model to the ARIMA residuals
+garch_fit <- ugarchfit(spec = garch_spec, data = arima_residuals)
+
+# Extract and print the summary
+garch_summary <- summary(garch_fit)
+print(garch_summary)
+
+# Extract coefficients and standard errors
+coef_table <- garch_fit@fit$matcoef
+
+# Extract p-values from the coefficient table
+p_values <- coef_table[, 4]
+
+# Print the coefficients and p-values
+print(coef_table)
+
+# Output the p-values
+cat("P-values for the GARCH(1,1) model parameters:\n")
+print(p_values)
+
+# Plot diagnostics
+plot(garch_fit, which = "all")
+
+# Check AIC, BIC, and other criteria
+aic_value <- infocriteria(garch_fit)["Akaike",]
+bic_value <- infocriteria(garch_fit)["Bayes",]
+
+cat("AIC:", aic_value, "\n")
+cat("BIC:", bic_value, "\n")
+```
+
+
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+garch_residuals <- residuals(garch_fit, standardize = TRUE)
+
+# Set the maximum number of lags for the Ljung-Box test
+max_lags <- 30
+
+# Initialize a vector to store p-values
+p_values <- numeric(max_lags)
+
+# Calculate the Ljung-Box test p-values for each lag
+for (lag in 1:max_lags) {
+  lb_test <- Box.test(garch_residuals, lag = lag, type = "Ljung-Box", fitdf = 0)
+  p_values[lag] <- lb_test$p.value
+}
+
+# Create a plot of p-values
+plot(1:max_lags, p_values, type = "b", pch = 19, col = "blue",
+     xlab = "Lag", ylab = "p-value",
+     main = "Ljung-Box Test p-values for Standardized Residuals")
+abline(h = 0.05, col = "red", lty = 2)  # Add a line at the 0.05 significance level
+
+# Creating a dataframe for plotting
+residuals_df <- data.frame(Residuals = as.numeric(garch_residuals))
+```
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the number of periods you want to forecast
+forecast_horizon <- 12
+
+# Forecast future values using the SARIMA model
+sarima_forecast <- forecast(garch_residuals, h = forecast_horizon)
+
+# Plot SARIMA forecast
+plot(sarima_forecast, main = "SARIMA Forecast")
+
+# Step 4: Forecast using the GARCH model
+garch_forecast <- ugarchforecast(garch_fit, n.ahead = forecast_horizon)
+
+# Extract forecasted volatility (standard deviation) from the GARCH model
+volatility_forecast <- sigma(garch_forecast)
+
+# Print volatility forecast
+print(volatility_forecast)
+
+# Combine SARIMA forecast with GARCH volatility forecast
+plot(sarima_forecast, main = "Forecasted Mean with SARIMA", xlab = "Time", ylab = "Values")
+lines(volatility_forecast, col = "red", lty = 2)
+
+legend("topright", legend = c("SARIMA Mean", "GARCH Volatility"), col = c("blue", "red"), lty = 1:2)
+```
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+arima_residuals <- residuals(arima_model_303003)
+
+# Print the first few residuals to inspect them
+head(arima_residuals)
+```
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+checkresiduals(arima_model_303003)
+tsdiag(arima_model_303003)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Square the residuals
+squared_residuals <- arima_residuals^2
+
+# Plot ACF of squared residuals
+acf(squared_residuals, lag.max = 20, main = "ACF of Squared Residuals")
+
+# Plot PACF of squared residuals
+pacf(squared_residuals, lag.max = 20, main = "PACF of Squared Residuals")
+
+# Calculate ACF and PACF values
+acf_values <- acf(squared_residuals, lag.max = 20, plot = FALSE)$acf
+pacf_values <- pacf(squared_residuals, lag.max = 20, plot = FALSE)$acf
+
+# Display ACF and PACF values
+acf_values
+pacf_values
+```
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the GARCH(1,1) model
+garch_spec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(2, 1), include.mean = FALSE),
+  distribution.model = "std"  # You can also try "std" for t-distribution
+)
+
+# Fit the GARCH model to the ARIMA residuals
+garch_fit <- ugarchfit(spec = garch_spec, data = arima_residuals)
+
+# Extract and print the summary
+garch_summary <- summary(garch_fit)
+print(garch_summary)
+
+# Extract coefficients and standard errors
+coef_table <- garch_fit@fit$matcoef
+
+# Extract p-values from the coefficient table
+p_values <- coef_table[, 4]
+
+# Print the coefficients and p-values
+print(coef_table)
+
+# Output the p-values
+cat("P-values for the GARCH(1,1) model parameters:\n")
+print(p_values)
+
+# Plot diagnostics
+plot(garch_fit, which = "all")
+
+# Check AIC, BIC, and other criteria
+aic_value <- infocriteria(garch_fit)["Akaike",]
+bic_value <- infocriteria(garch_fit)["Bayes",]
+
+cat("AIC:", aic_value, "\n")
+cat("BIC:", bic_value, "\n")
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the GARCH(1,1) model
+garch_spec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(2, 2), include.mean = FALSE),
+  distribution.model = "std"  # You can also try "std" for t-distribution
+)
+
+# Fit the GARCH model to the ARIMA residuals
+garch_fit <- ugarchfit(spec = garch_spec, data = arima_residuals)
+
+# Extract and print the summary
+garch_summary <- summary(garch_fit)
+print(garch_summary)
+
+# Extract coefficients and standard errors
+coef_table <- garch_fit@fit$matcoef
+
+# Extract p-values from the coefficient table
+p_values <- coef_table[, 4]
+
+# Print the coefficients and p-values
+print(coef_table)
+
+# Output the p-values
+cat("P-values for the GARCH(1,1) model parameters:\n")
+print(p_values)
+
+# Plot diagnostics - plot 8 (ACF of the standardized residuals)
+plot(garch_fit, which = 8)
+
+# Plot diagnostics - plot 9 (ACF of the squared standardized residuals)
+plot(garch_fit, which = 9)
+
+# Plot diagnostics - plot 10 (Cross-correlation between residuals and squared residuals)
+plot(garch_fit, which = 10)
+
+# Check AIC, BIC, and other criteria
+aic_value <- infocriteria(garch_fit)["Akaike",]
+bic_value <- infocriteria(garch_fit)["Bayes",]
+
+cat("AIC:", aic_value, "\n")
+cat("BIC:", bic_value, "\n")
+```
+
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+garch_residuals <- residuals(garch_fit, standardize = TRUE)
+
+# Set the maximum number of lags for the Ljung-Box test
+max_lags <- 30
+
+# Initialize a vector to store p-values
+p_values <- numeric(max_lags)
+
+# Calculate the Ljung-Box test p-values for each lag
+for (lag in 1:max_lags) {
+  lb_test <- Box.test(garch_residuals, lag = lag, type = "Ljung-Box", fitdf = 0)
+  p_values[lag] <- lb_test$p.value
+}
+
+# Create a plot of p-values
+plot(1:max_lags, p_values, type = "b", pch = 19, col = "blue",
+     xlab = "Lag", ylab = "p-value",
+     main = "Ljung-Box Test p-values for Standardized Residuals")
+abline(h = 0.05, col = "red", lty = 2)  # Add a line at the 0.05 significance level
+
+# Creating a dataframe for plotting
+residuals_df <- data.frame(Residuals = as.numeric(garch_residuals))
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the number of periods you want to forecast
+forecast_horizon <- 12
+
+# Forecast future values using the SARIMA model
+sarima_forecast <- forecast(garch_residuals, h = forecast_horizon)
+
+# Plot SARIMA forecast
+plot(sarima_forecast, main = "SARIMA Forecast")
+
+# Step 4: Forecast using the GARCH model
+garch_forecast <- ugarchforecast(garch_fit, n.ahead = forecast_horizon)
+
+# Extract forecasted volatility (standard deviation) from the GARCH model
+volatility_forecast <- sigma(garch_forecast)
+
+# Print volatility forecast
+print(volatility_forecast)
+
+# Combine SARIMA forecast with GARCH volatility forecast
+plot(sarima_forecast, main = "Forecasted Mean with SARIMA", xlab = "Time", ylab = "Values")
+lines(volatility_forecast, col = "red", lty = 2)
+
+legend("topright", legend = c("SARIMA Mean", "GARCH Volatility"), col = c("blue", "red"), lty = 1:2)
+```
+
+#ARIMA MODEL 204003
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+arima_model_204003 <- Arima(combined_diff_ts, 
+                     order = c(2, 0, 4), 
+                     seasonal = list(order = c(0, 0, 3), period = 12))
+
+# Print the summary of the fitted model
+summary(arima_model_204003)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+checkresiduals(arima_model_204003)
+tsdiag(arima_model_204003)
+```
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+arima_residuals <- residuals(arima_model_204003)
+
+# Print the first few residuals to inspect them
+head(arima_residuals)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Square the residuals
+squared_residuals <- arima_residuals^2
+
+# Plot ACF of squared residuals
+acf(squared_residuals, lag.max = 20, main = "ACF of Squared Residuals")
+
+# Plot PACF of squared residuals
+pacf(squared_residuals, lag.max = 20, main = "PACF of Squared Residuals")
+
+# Calculate ACF and PACF values
+acf_values <- acf(squared_residuals, lag.max = 20, plot = FALSE)$acf
+pacf_values <- pacf(squared_residuals, lag.max = 20, plot = FALSE)$acf
+
+# Display ACF and PACF values
+acf_values
+pacf_values
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the GARCH(1,1) model
+garch_spec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(2, 2), include.mean = FALSE),
+  distribution.model = "std"  # You can also try "std" for t-distribution
+)
+
+# Fit the GARCH model to the ARIMA residuals
+garch_fit <- ugarchfit(spec = garch_spec, data = arima_residuals)
+
+# Extract and print the summary
+garch_summary <- summary(garch_fit)
+print(garch_summary)
+
+# Extract coefficients and standard errors
+coef_table <- garch_fit@fit$matcoef
+
+# Extract p-values from the coefficient table
+p_values <- coef_table[, 4]
+
+# Print the coefficients and p-values
+print(coef_table)
+
+# Output the p-values
+cat("P-values for the GARCH(1,1) model parameters:\n")
+print(p_values)
+
+# Plot diagnostics - plot 8 (ACF of the standardized residuals)
+plot(garch_fit, which = 8)
+
+# Plot diagnostics - plot 9 (ACF of the squared standardized residuals)
+plot(garch_fit, which = 9)
+
+# Plot diagnostics - plot 10 (Cross-correlation between residuals and squared residuals)
+plot(garch_fit, which = 10)
+
+# Check AIC, BIC, and other criteria
+aic_value <- infocriteria(garch_fit)["Akaike",]
+bic_value <- infocriteria(garch_fit)["Bayes",]
+
+cat("AIC:", aic_value, "\n")
+cat("BIC:", bic_value, "\n")
+```
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+garch_residuals <- residuals(garch_fit, standardize = TRUE)
+
+# Set the maximum number of lags for the Ljung-Box test
+max_lags <- 30
+
+# Initialize a vector to store p-values
+p_values <- numeric(max_lags)
+
+# Calculate the Ljung-Box test p-values for each lag
+for (lag in 1:max_lags) {
+  lb_test <- Box.test(garch_residuals, lag = lag, type = "Ljung-Box", fitdf = 0)
+  p_values[lag] <- lb_test$p.value
+}
+
+# Print the list of p-values
+print(p_values)
+
+# Create a plot of p-values
+plot(1:max_lags, p_values, type = "b", pch = 19, col = "blue",
+     xlab = "Lag", ylab = "p-value",
+     main = "Ljung-Box Test p-values for Standardized Residuals")
+abline(h = 0.05, col = "red", lty = 2)  # Add a line at the 0.05 significance level
+
+# Creating a dataframe for plotting (optional if you need it for further analysis)
+residuals_df <- data.frame(Residuals = as.numeric(garch_residuals))
+
+```
+
+# ARIMA MODEL 303001
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+arima_model_303001 <- Arima(combined_diff_ts, 
+                     order = c(3, 0, 3), 
+                     seasonal = list(order = c(0, 0, 1), period = 12))
+
+# Print the summary of the fitted model
+summary(arima_model_303001)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+arima_residuals <- residuals(arima_model_303001)
+
+# Print the first few residuals to inspect them
+head(arima_residuals)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the GARCH(1,1) model
+garch_spec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(2, 2), include.mean = FALSE),
+  distribution.model = "std"  # You can also try "std" for t-distribution
+)
+
+# Fit the GARCH model to the ARIMA residuals
+garch_fit <- ugarchfit(spec = garch_spec, data = arima_residuals)
+
+# Extract and print the summary
+garch_summary <- summary(garch_fit)
+print(garch_summary)
+
+# Extract coefficients and standard errors
+coef_table <- garch_fit@fit$matcoef
+
+# Extract p-values from the coefficient table
+p_values <- coef_table[, 4]
+
+# Print the coefficients and p-values
+print(coef_table)
+
+# Output the p-values
+cat("P-values for the GARCH(1,1) model parameters:\n")
+print(p_values)
+
+# Plot diagnostics - plot 8 (ACF of the standardized residuals)
+plot(garch_fit, which = 8)
+
+# Plot diagnostics - plot 9 (ACF of the squared standardized residuals)
+plot(garch_fit, which = 9)
+
+# Plot diagnostics - plot 10 (Cross-correlation between residuals and squared residuals)
+plot(garch_fit, which = 10)
+
+# Check AIC, BIC, and other criteria
+aic_value <- infocriteria(garch_fit)["Akaike",]
+bic_value <- infocriteria(garch_fit)["Bayes",]
+
+cat("AIC:", aic_value, "\n")
+cat("BIC:", bic_value, "\n")
+```
+
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+garch_residuals <- residuals(garch_fit, standardize = TRUE)
+
+# Set the maximum number of lags for the Ljung-Box test
+max_lags <- 30
+
+# Initialize a vector to store p-values
+p_values <- numeric(max_lags)
+
+# Calculate the Ljung-Box test p-values for each lag
+for (lag in 1:max_lags) {
+  lb_test <- Box.test(garch_residuals, lag = lag, type = "Ljung-Box", fitdf = 0)
+  p_values[lag] <- lb_test$p.value
+}
+
+# Create a plot of p-values
+plot(1:max_lags, p_values, type = "b", pch = 19, col = "blue",
+     xlab = "Lag", ylab = "p-value",
+     main = "Ljung-Box Test p-values for Standardized Residuals")
+abline(h = 0.05, col = "red", lty = 2)  # Add a line at the 0.05 significance level
+
+# Creating a dataframe for plotting
+residuals_df <- data.frame(Residuals = as.numeric(garch_residuals))
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the number of periods you want to forecast
+forecast_horizon <- 12
+
+# Forecast future values using the SARIMA model
+sarima_forecast <- forecast(garch_residuals, h = forecast_horizon)
+
+# Plot SARIMA forecast
+plot(sarima_forecast, main = "SARIMA Forecast")
+
+# Step 4: Forecast using the GARCH model
+garch_forecast <- ugarchforecast(garch_fit, n.ahead = forecast_horizon)
+
+# Extract forecasted volatility (standard deviation) from the GARCH model
+volatility_forecast <- sigma(garch_forecast)
+
+# Print volatility forecast
+print(volatility_forecast)
+
+# Combine SARIMA forecast with GARCH volatility forecast
+plot(sarima_forecast, main = "Forecasted Mean with SARIMA", xlab = "Time", ylab = "Values")
+lines(volatility_forecast, col = "red", lty = 2)
+
+legend("topright", legend = c("SARIMA Mean", "GARCH Volatility"), col = c("blue", "red"), lty = 1:2)
+```
+
+# ARIMA MODEL 303003
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+arima_model_303003 <- Arima(combined_diff_ts, 
+                     order = c(3, 0, 3), 
+                     seasonal = list(order = c(0, 0, 3), period = 12))
+
+# Print the summary of the fitted model
+summary(arima_model_303003)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+arima_residuals <- residuals(arima_model_303003)
+
+# Print the first few residuals to inspect them
+head(arima_residuals)
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the GARCH(1,1) model
+garch_spec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(2, 2), include.mean = FALSE),
+  distribution.model = "std"  # You can also try "std" for t-distribution
+)
+
+# Fit the GARCH model to the ARIMA residuals
+garch_fit <- ugarchfit(spec = garch_spec, data = arima_residuals)
+
+# Extract and print the summary
+garch_summary <- summary(garch_fit)
+print(garch_summary)
+
+# Extract coefficients and standard errors
+coef_table <- garch_fit@fit$matcoef
+
+# Extract p-values from the coefficient table
+p_values <- coef_table[, 4]
+
+# Print the coefficients and p-values
+print(coef_table)
+
+# Output the p-values
+cat("P-values for the GARCH(1,1) model parameters:\n")
+print(p_values)
+
+# Plot diagnostics - plot 8 (ACF of the standardized residuals)
+plot(garch_fit, which = 8)
+
+# Plot diagnostics - plot 9 (ACF of the squared standardized residuals)
+plot(garch_fit, which = 9)
+
+# Plot diagnostics - plot 10 (Cross-correlation between residuals and squared residuals)
+plot(garch_fit, which = 10)
+
+# Check AIC, BIC, and other criteria
+aic_value <- infocriteria(garch_fit)["Akaike",]
+bic_value <- infocriteria(garch_fit)["Bayes",]
+
+cat("AIC:", aic_value, "\n")
+cat("BIC:", bic_value, "\n")
+```
+
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+garch_residuals <- residuals(garch_fit, standardize = TRUE)
+
+# Set the maximum number of lags for the Ljung-Box test
+max_lags <- 30
+
+# Initialize a vector to store p-values
+p_values <- numeric(max_lags)
+
+# Calculate the Ljung-Box test p-values for each lag
+for (lag in 1:max_lags) {
+  lb_test <- Box.test(garch_residuals, lag = lag, type = "Ljung-Box", fitdf = 0)
+  p_values[lag] <- lb_test$p.value
+}
+
+# Create a plot of p-values
+plot(1:max_lags, p_values, type = "b", pch = 19, col = "blue",
+     xlab = "Lag", ylab = "p-value",
+     main = "Ljung-Box Test p-values for Standardized Residuals")
+abline(h = 0.05, col = "red", lty = 2)  # Add a line at the 0.05 significance level
+
+# Creating a dataframe for plotting
+residuals_df <- data.frame(Residuals = as.numeric(garch_residuals))
+```
+
+```{r, results = 'hide', message=FALSE, warning=FALSE}
+# Specify the number of periods you want to forecast
+forecast_horizon <- 12
+
+# Forecast future values using the SARIMA model
+sarima_forecast <- forecast(garch_residuals, h = forecast_horizon)
+
+# Plot SARIMA forecast
+plot(sarima_forecast, main = "SARIMA Forecast")
+
+# Step 4: Forecast using the GARCH model
+garch_forecast <- ugarchforecast(garch_fit, n.ahead = forecast_horizon)
+
+# Extract forecasted volatility (standard deviation) from the GARCH model
+volatility_forecast <- sigma(garch_forecast)
+
+# Print volatility forecast
+print(volatility_forecast)
+
+# Combine SARIMA forecast with GARCH volatility forecast
+plot(sarima_forecast, main = "Forecasted Mean with SARIMA", xlab = "Time", ylab = "Values")
+lines(volatility_forecast, col = "red", lty = 2)
+
+legend("topright", legend = c("SARIMA Mean", "GARCH Volatility"), col = c("blue", "red"), lty = 1:2)
+```
